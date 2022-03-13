@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <optional>
 
-// #include <Python.h>
 
 struct Point{
     Point(): x(0),y(0){}

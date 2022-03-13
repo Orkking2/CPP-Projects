@@ -5,9 +5,8 @@
 #include <algorithm>
 #include <optional>
 
-#include "Main.h"
-
-#include <python3.9/Python.h>
+#include "main.h"
+// #include "Disp.h"
 
 double slope(double x, double y){
     return (pow(x,2) + pow(y,2) - 2*x*y - 3);  // x^2 + y^2 - 2xy - 3
@@ -51,7 +50,7 @@ class container{
 
 class Matrix{
     public:
-        Matrix(): data(0){}
+        Matrix() = default;
         Matrix(Point pMin, Point pMax, std::vector<int> dimensions){
             xDist = pMax.x - pMin.y;
             yDist = pMax.y - pMin.y;
@@ -81,13 +80,13 @@ class Matrix{
                 data.emplace_back(Point(xList[i],yList[i]));
             }
         }
-        const std::vector <Point>& getMatrix(){
+        const std::vector<Point>& getMatrix(){
             return data;
         }
     protected:
-        std::vector <Point> data;
-        double yDist;
-        double xDist;
+        std::vector<Point> data;
+        double yDist = 0;
+        double xDist = 0;
         std::vector<int> d;
         Point startMin;
         Point startMax;
@@ -102,46 +101,62 @@ class SlopeField : public Matrix{
         SlopeField(Point pMin, Point pMax, std::vector<int> dimensions) : Matrix(pMin, pMax, dimensions){
             genSegments();
         }
-        const std::vector <Segment>& getSegments() const {
+        const std::vector<Segment>& getSegments() const {
             return segments;
         }
-        const std::vector <Point>& getBounds () const {
+        const std::vector<Point>& getBounds () const {
             return bounds;
         }
     private:
         void genSegments(){ // *Also gens bounds
             double r = std::min(xDist/(2*d[0]-1),yDist/(2*d[1]-1));
-            std::vector <double> k;
-            std::optional <Point> pLow;
-            std::optional <Point> pHigh;
+            std::vector<double> k;
+            std::optional<Point> pLow;
+            std::optional<Point> pHigh;
 
             for(int i = 0; i < d[2]; i++){
-            /*  k explination:
-          diagram - *<--->.<--->*
+            	/* k explanation:
+             	 	*<--->.<--->* (diagram line)
                     |  k  |  k  | -- k = dist
                     * = p1|     * = p2
-                          . = data[i]
-            */  k.push_back(r/pow(pow(slope(data[i].x,data[i].y), 2) + 1, 1/2));
+                          . = data[i]           */
+            	k.push_back(r/pow(pow(slope(data[i].x,data[i].y), 2) + 1, 1/2));
 
                 // Defining points in segment
                 Point pMin (data[i].x - k[i], data[i].y - slope(data[i].x,data[i].y)*k[i]);
                 Point pMax (data[i].x + k[i], data[i].y + slope(data[i].x,data[i].y)*k[i]);
 
                 // Evaluating bounds
-                for(auto* pTest : std::vector<std::optional <Point>*> {&pLow, &pHigh}){
-                    if(!pTest->has_value()){
-                        *pTest = pMin;
-                    } else {
-                        for(Point pCurr : {pMin, pMax}){
-                            if(pTest->value().x < pCurr.x){
-                                pTest->value().x = pCurr.x;
-                            }
-                            if(pTest->value().y < pCurr.y){
-                                pTest->value().y = pCurr.y;
-                            }
-                        }
-                    }
-                }
+				if(!pLow.has_value() && !pHigh.has_value()){
+					pLow.value().x = pMin.x;
+					pHigh.value().x = pMax.x;
+					if(pMin.y < pMax.x){
+						pLow.value().y = pMin.y;
+						pHigh.value().y = pMax.y;
+					} else {
+						pLow.value().y = pMax.y;
+						pHigh.value().y = pMin.y;
+					}
+				} else {
+					for(Point pCurr : {pMin, pMax}){
+
+						// pLow
+						if(pLow.value().x > pCurr.x){
+							pLow.value().x = pCurr.x;
+						}
+						if(pLow.value().y > pCurr.y){
+							pLow.value().y = pCurr.y;
+						}
+
+						// pHigh
+						if(pHigh.value().x < pCurr.x){
+							pHigh.value().x = pCurr.x;
+						}
+						if(pHigh.value().y < pCurr.y){
+							pHigh.value().y = pCurr.y;
+						}
+					}
+				}
 
                 // Constructing Segment list
                 segments.push_back(Segment(pMin, pMax));
@@ -153,12 +168,13 @@ class SlopeField : public Matrix{
             bounds.push_back(pHigh.value());
         }
 
-        std::vector <Point> data;
-        std::vector <Segment> segments;
-        std::vector <Point> bounds;
+        // Members
+        std::vector<Point> data;
+        std::vector<Segment> segments;
+        std::vector<Point> bounds;
 };
 
-std::vector <double> StartSelect(){
+std::vector<double> StartSelect(){
     double startX;
     double startY;
     double targetX;
@@ -169,19 +185,21 @@ std::vector <double> StartSelect(){
     std::cin >> startY;
     std::cout << "Target X: ";
     std::cin >> targetX;
-    std::vector <double> out = {startX, startY, targetX};
-
+    // Out construction
+    std::vector<double> out = {startX, startY, targetX};
+    // Out
     return out;
 }
 
 std::vector<double> NHSelect(double targetX, double x){
-    std::vector<double> out;
-    std::cout << "N or H: ";
-    char nhSelect;
-    std::cin >> nhSelect;
     int n;
     double h;
+    char nhSelect;
     double nCap = 10000000;
+    std::vector<double> out;
+
+    std::cout << "N or H: ";
+    std::cin >> nhSelect;
     if(tolower(nhSelect) == 'n'){
         std::cout << "N: ";
         std::cin >> n;
@@ -217,14 +235,17 @@ std::vector<double> NHSelect(double targetX, double x){
         std::cout << "Invalid char" << std::endl;
         out = NHSelect(targetX, x);
     }
+
     std::cout << std::endl;
+
     out.push_back(n);
     out.push_back(h);
+
     return out;
 }
 
 
-std::vector<Point> Approximate(std::vector <double> in){
+std::vector<Point> Approximate(std::vector<double> in){
     Point startPoint (in[0],in[1]);
     std::vector<Point> pointList = {startPoint};
     Point iterativePoint = startPoint;
@@ -235,7 +256,7 @@ std::vector<Point> Approximate(std::vector <double> in){
     double tRadius = xDist/5000;
 
     std::vector<double> nh = NHSelect(targetX, startPoint.x);
-    int n = (int)nh[0];
+    int n = static_cast<int> (nh[0]);
     double h = nh[1];
 
     int j = 0;
@@ -259,7 +280,7 @@ std::vector<Point> Approximate(std::vector <double> in){
 
 int main()
 {
-    std::vector <Point> pL = Approximate(StartSelect());
+    std::vector<Point> pL = Approximate(StartSelect());
     std::cout << "Final point " << pL[pL.size() - 1];
 
     return 0;
