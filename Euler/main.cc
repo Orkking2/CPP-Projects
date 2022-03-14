@@ -6,9 +6,9 @@
 #include <optional>
 
 // #include "main.h"
-#include "Disp.h"
+// #include "Disp.h"
 
-namespace plt = matplotlibcpp;
+// namespace plt = matplotlibcpp;
 
 double slope(double x, double y){
     return (pow(x,2) + pow(y,2) - 2*x*y - 3);  // x^2 + y^2 - 2xy - 3
@@ -45,6 +45,7 @@ struct Point{
     bool inRadius(Point p, double r){
         return sqrt(pow(p.x - this->x, 2) + pow(p.y - this->y, 2)) <= r;
     }
+
 };
 
 bool operator < (const Point& l, const Point& r){
@@ -278,7 +279,7 @@ std::vector<Point> Approximate(std::vector<double> in, bool isTesting){
 		n = pow(10, 7);
 		h = 1/n;
 	} else {
-		startPoint (in[0],in[1]);
+		startPoint = Point (in[0],in[1]);
 
 		std::vector<double> k;
 		double targetX = in[2], xDist = abs(targetX - startPoint.x);
@@ -310,18 +311,23 @@ std::vector<Point> Approximate(std::vector<double> in, bool isTesting){
     return pointList;
 }
 
-void PlotLine(std::vector<Point> pList){
+std::vector<std::vector<double>> GetXYList (std::vector<Point> pList){
 	std::vector<double> xList, yList;
 	for(Point p : pList){
 		xList.push_back(p.x);
 		yList.push_back(p.y);
 	}
-	plt::plot(xList, yList, "g-");
+	return {xList, yList};
+}
+
+void PlotLine(std::vector<Point> pList){
+	auto L = GetXYList(pList);
+	// plt::plot(L[0], L[1], "g-");
 }
 
 void PlotSegments(std::vector<Segment> segments){
 	for(Segment s : segments){
-		plt::plot({s.p1.x, s.p2.x}, {s.p1.y, s.p2.y}, "b-");
+		// plt::plot({s.p1.x, s.p2.x}, {s.p1.y, s.p2.y}, "b-");
 	}
 }
 
@@ -331,7 +337,6 @@ int main()
     std::vector<Point> pL = Approximate({}, true);
     std::cout << "Final point " << pL[pL.size() - 1] << std::endl;
     PlotLine(pL);
-    plt::show();
 
     return 0;
 }
