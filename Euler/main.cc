@@ -6,15 +6,47 @@
 #include <optional>
 
 #include "main.h"
-// #include "Disp.h"
+#include "Disp.h"
+
+namespace plt = matplotlibcpp;
 
 double slope(double x, double y){
     return (pow(x,2) + pow(y,2) - 2*x*y - 3);  // x^2 + y^2 - 2xy - 3
 }
 
-bool Point::inRadius(Point p, double r){
-    return sqrt(pow(p.x - this->x, 2) + pow(p.y - this->y, 2)) <= r;
-}
+struct Point{
+    Point(): x(0),y(0){}
+    Point(double XComponent, double YComponent){
+        x = XComponent;
+        y = YComponent;
+    }
+    double x;
+    double y;
+
+    friend std::ostream& operator << (std::ostream& os, const Point& p);
+    friend bool operator < (const Point& l, const Point& r);
+
+    Point operator + (const Point& p){
+        return Point(this->x + p.x, this->y + p.y);
+    }
+
+    bool operator = (const Point& p){
+        return (this->x == p.x && this->y == p.y);
+    }
+
+    bool operator != (const Point& p){
+        return !(this->x == p.x || this->y == p.y);
+    }
+
+    void operator += (const Point& p){
+        this->x += p.x;
+        this->y += p.y;
+    }
+
+    bool inRadius(Point p, double r){
+        return sqrt(pow(p.x - this->x, 2) + pow(p.y - this->y, 2)) <= r;
+    }
+};
 
 bool operator < (const Point& l, const Point& r){
     return l.x < r.x && l.y < r.y;
@@ -34,6 +66,13 @@ struct Segment{
     Point p1;
     Point p2;
     friend bool operator < (const Segment& l, const Segment& r);
+    Point operator ++ (){
+    	return this->p1 + this->p2;
+    }
+    void operator += (const Segment& s){
+    	this->p1 += s.p1;
+    	this->p2 += s.p1;
+    }
 };
 
 bool operator < (const Segment& l, const Segment& r){
@@ -195,7 +234,7 @@ std::vector<double> NHSelect(double targetX, double x){
     int n;
     double h;
     char nhSelect;
-    double nCap = 10000000;
+    double nCap = pow(10, 7);
     std::vector<double> out;
 
     std::cout << "N or H: ";
@@ -244,22 +283,34 @@ std::vector<double> NHSelect(double targetX, double x){
     return out;
 }
 
+std::vector<Point> Approximate(std::vector<double> in, bool isTesting){
+	int n;
+	double h;
+	double tRadius;
+	Point startPoint;
 
-std::vector<Point> Approximate(std::vector<double> in){
-    Point startPoint (in[0],in[1]);
-    std::vector<Point> pointList = {startPoint};
-    Point iterativePoint = startPoint;
+	if(isTesting){
+		tRadius = 1/5000;
+		n = pow(10, 7);
+		h = 1/n;
+	} else {
+		startPoint (in[0],in[1]);
 
-    std::vector<double> k;
-    double targetX = in[2];
-    double xDist = abs(targetX - startPoint.x);
-    double tRadius = xDist/5000;
+		std::vector<double> k;
+		double targetX = in[2];
+		double xDist = abs(targetX - startPoint.x);
+		tRadius = xDist/5000;
 
-    std::vector<double> nh = NHSelect(targetX, startPoint.x);
-    int n = static_cast<int> (nh[0]);
-    double h = nh[1];
+		std::vector<double> nh = NHSelect(targetX, startPoint.x);
 
-    int j = 0;
+		n = static_cast<int> (nh[0]);
+		h = nh[1];
+	}
+
+	Point iterativePoint = startPoint;
+	std::vector<Point> pointList = {startPoint};
+
+	int j = 0;
 
     for(int i = 0; i < n; i++){
         iterativePoint += Point(h, slope(iterativePoint.x,iterativePoint.y)*h);
@@ -276,12 +327,31 @@ std::vector<Point> Approximate(std::vector<double> in){
     return pointList;
 }
 
+void PlotLine(std::vector<Point> pList){
+	std::vector<double> xList;
+	std::vector<double> yList;
+	for(Point p : pList){
+		xList.push_back(p.x);
+		yList.push_back(p.y);
+	}
+	plt::plot(xList, yList, "g-");
+}
+
+void PlotSegments(std::vector<Segment> segments){
+	for(Segment s : segments){
+		for(Point p : {s.p1, s.p2}){
+			plt::plot({p.x}, {p.y}, "b-");
+		}
+	}
+}
 
 
 int main()
 {
-    std::vector<Point> pL = Approximate(StartSelect());
-    std::cout << "Final point " << pL[pL.size() - 1];
+    std::vector<Point> pL = Approximate({}, true);
+    std::cout << "Final point " << pL[pL.size() - 1] << std::endl;
+    PlotLine(pL);
+    plt::show();
 
     return 0;
 }
