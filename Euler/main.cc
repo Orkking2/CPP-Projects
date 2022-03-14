@@ -20,8 +20,7 @@ struct Point{
         x = XComponent;
         y = YComponent;
     }
-    double x;
-    double y;
+    double x, y;
 
     friend std::ostream& operator << (std::ostream& os, const Point& p);
     friend bool operator < (const Point& l, const Point& r);
@@ -63,8 +62,7 @@ struct Segment{
         p1 = point1;
         p2 = point2;
     }
-    Point p1;
-    Point p2;
+    Point p1, p2;
     friend bool operator < (const Segment& l, const Segment& r);
     Point operator ++ (){
     	return this->p1 + this->p2;
@@ -99,24 +97,20 @@ class Matrix{
 
             d = {dimensions[0], dimensions[1], dimensions[0]*dimensions[1]};
 
+            data.resize(d[2]);
+
             double xSpacing = xDist/(d[0]-1);
             double ySpacing = yDist/(d[1]-1);
 
             for(int i = 0; i < d[0]; i++){
-                matrixX.push_back(i*xSpacing + pMin.x);
+                xList.push_back(i*xSpacing + pMin.x);
             }
             for(int i = 0; i < d[1]; i++){
-                matrixY.push_back(i*ySpacing + pMin.y);
-            }
-            for(int i = 0; i < d[2]; i++){
-                xList.push_back(matrixX[i % d[0]]);
-                yList.push_back(matrixY[floor(i/d[0])]);
+                yList.push_back(i*ySpacing + pMin.y);
             }
 
-            data.resize(d[2]);
-
             for(int i = 0; i < d[2]; i++){
-                data.emplace_back(Point(xList[i],yList[i]));
+                data.emplace_back(Point(xList[i % d[0]],yList[floor(i/d[0])]));
             }
         }
         const std::vector<Point>& getMatrix(){
@@ -124,15 +118,10 @@ class Matrix{
         }
     protected:
         std::vector<Point> data;
-        double yDist = 0;
-        double xDist = 0;
+        double yDist = 0, xDist = 0;
         std::vector<int> d;
-        Point startMin;
-        Point startMax;
-        std::vector<double> matrixX;
-        std::vector<double> matrixY;
-        std::vector<double> xList;
-        std::vector<double> yList;
+        Point startMin, startMax;
+        std::vector<double> xList, yList;
 };
 
 class SlopeField : public Matrix{
@@ -150,8 +139,7 @@ class SlopeField : public Matrix{
         void genSegments(){ // *Also gens bounds
             double r = std::min(xDist/(2*d[0]-1),yDist/(2*d[1]-1));
             std::vector<double> k;
-            std::optional<Point> pLow;
-            std::optional<Point> pHigh;
+            std::optional<Point> pLow, pHigh;
 
             for(int i = 0; i < d[2]; i++){
             	/* k explanation:
@@ -214,9 +202,7 @@ class SlopeField : public Matrix{
 };
 
 std::vector<double> StartSelect(){
-    double startX;
-    double startY;
-    double targetX;
+    double startX, startY, targetX;
     // questions
     std::cout << "Start X: ";
     std::cin >> startX;
@@ -232,9 +218,8 @@ std::vector<double> StartSelect(){
 
 std::vector<double> NHSelect(double targetX, double x){
     int n;
-    double h;
+    double h, nCap = pow(10, 7);;
     char nhSelect;
-    double nCap = pow(10, 7);
     std::vector<double> out;
 
     std::cout << "N or H: ";
@@ -285,8 +270,7 @@ std::vector<double> NHSelect(double targetX, double x){
 
 std::vector<Point> Approximate(std::vector<double> in, bool isTesting){
 	int n;
-	double h;
-	double tRadius;
+	double h, tRadius;
 	Point startPoint;
 
 	if(isTesting){
@@ -297,8 +281,7 @@ std::vector<Point> Approximate(std::vector<double> in, bool isTesting){
 		startPoint (in[0],in[1]);
 
 		std::vector<double> k;
-		double targetX = in[2];
-		double xDist = abs(targetX - startPoint.x);
+		double targetX = in[2], xDist = abs(targetX - startPoint.x);
 		tRadius = xDist/5000;
 
 		std::vector<double> nh = NHSelect(targetX, startPoint.x);
@@ -328,8 +311,7 @@ std::vector<Point> Approximate(std::vector<double> in, bool isTesting){
 }
 
 void PlotLine(std::vector<Point> pList){
-	std::vector<double> xList;
-	std::vector<double> yList;
+	std::vector<double> xList, yList;
 	for(Point p : pList){
 		xList.push_back(p.x);
 		yList.push_back(p.y);
@@ -339,9 +321,7 @@ void PlotLine(std::vector<Point> pList){
 
 void PlotSegments(std::vector<Segment> segments){
 	for(Segment s : segments){
-		for(Point p : {s.p1, s.p2}){
-			plt::plot({p.x}, {p.y}, "b-");
-		}
+		plt::plot({s.p1.x, s.p2.x}, {s.p1.y, s.p2.y}, "b-");
 	}
 }
 
