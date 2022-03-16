@@ -44,7 +44,7 @@ struct Point{
         return Point(this->x + p.x, this->y + p.y);
     }
 
-    bool operator = (const Point& p){
+    bool operator == (const Point& p){
         return (this->x == p.x && this->y == p.y);
     }
 
