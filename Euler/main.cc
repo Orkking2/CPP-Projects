@@ -102,6 +102,10 @@ struct Segment{
     		this->Reverse();
     	}
     }
+    void Translate(Point vector){
+    	this->p1 += vector;
+    	this->p2 += vector;
+    }
     friend bool operator < (const Segment& l, const Segment& r);
     Point operator ++ (){
     	return this->p1 + this->p2;
@@ -421,6 +425,7 @@ class PersonalImage{
 		}
 		void PlotSegment(Segment s){
 			s.Scale(scaler);
+			s.Translate(TranslationVector);
 			s.Order();
 			double slope = (s.p1.y - s.p2.y)/(s.p1.x - s.p2.x);
 			for(Pixel &p : pixels){ // Find a better way to do this
