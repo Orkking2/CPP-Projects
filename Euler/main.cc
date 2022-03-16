@@ -426,10 +426,12 @@ class PersonalImage{
 		void PlotSegment(Segment s){
 			s.Scale(scaler);
 			s.Translate(TranslationVector);
-			s.Order();
+			if(s.p2.x > s.p1.x){
+				s.Reverse();
+			}
 			double slope = (s.p1.y - s.p2.y)/(s.p1.x - s.p2.x);
 			for(Pixel &p : pixels){ // Find a better way to do this
-				if(p >= s.p1 && p <= s.p2 && p.y == slope*p.x){
+				if(p.x >= s.p2.x && p.x <= s.p2.x && p.y == slope*p.x){
 					p.RGB = {255,255,255};
 				}
 			}
@@ -449,8 +451,6 @@ class PersonalImage{
 
 int main(int /*argc*/, char ** argv)
 {
-
-
 
     return 0;
 }
