@@ -28,10 +28,10 @@ struct Point{
     double x, y;
     void Scale(double scaler){
     	double r = sqrt(pow(this->x, 2) + pow(this->y, 2));
-		double theta = atan(this->x*this->y);
-		r *= scaler;
-		this->x = r*cos(theta);
-		this->y = r*sin(theta);
+	double theta = atan(this->x*this->y);
+	r *= scaler;
+	this->x = r*cos(theta);
+	this->y = r*sin(theta);
     }
 
     friend std::ostream& operator << (std::ostream& os, const Point& p);
