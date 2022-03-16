@@ -4,11 +4,16 @@
 #include <math.h>
 #include <algorithm>
 #include <optional>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
 
-// #include "main.h"
-// #include "Disp.h"
+#define PNG_DEBUG 3
+#include <png.h>
 
-// namespace plt = matplotlibcpp;
+
 
 double slope(double x, double y){
     return (pow(x,2) + pow(y,2) - 2*x*y - 3);  // x^2 + y^2 - 2xy - 3
@@ -21,9 +26,19 @@ struct Point{
         y = YComponent;
     }
     double x, y;
+    void Scale(double scaler){
+    	double r = sqrt(pow(this->x, 2) + pow(this->y, 2));
+		double theta = atan(this->x*this->y);
+		r *= scaler;
+		this->x = r*cos(theta);
+		this->y = r*sin(theta);
+    }
 
     friend std::ostream& operator << (std::ostream& os, const Point& p);
     friend bool operator < (const Point& l, const Point& r);
+    friend bool operator > (const Point& l, const Point& r);
+    friend bool operator <= (const Point& l, const Point& r);
+    friend bool operator >= (const Point& l, const Point& r);
 
     Point operator + (const Point& p){
         return Point(this->x + p.x, this->y + p.y);
@@ -51,6 +66,15 @@ struct Point{
 bool operator < (const Point& l, const Point& r){
     return l.x < r.x && l.y < r.y;
 }
+bool operator > (const Point& l, const Point& r){
+    return l.x > r.x && l.y > r.y;
+}
+bool operator <= (const Point& l, const Point& r){
+    return l.x <= r.x && l.y <= r.y;
+}
+bool operator >= (const Point& l, const Point& r){
+    return l.x >= r.x && l.y >= r.y;
+}
 
 std::ostream& operator << (std::ostream& os, const Point& p){
     os << "(" << p.x << ", " << p.y << ")";
@@ -64,6 +88,20 @@ struct Segment{
         p2 = point2;
     }
     Point p1, p2;
+    void Scale(double scaler){
+    	this->p1.Scale(scaler);
+    	this->p2.Scale(scaler);
+    }
+    void Reverse(){
+    	Segment s(this->p2, this->p1);
+    	this->p1 = s.p1;
+    	this->p2 = s.p2;
+    }
+    void Order(){
+    	if(this->p2 > this->p1){
+    		this->Reverse();
+    	}
+    }
     friend bool operator < (const Segment& l, const Segment& r);
     Point operator ++ (){
     	return this->p1 + this->p2;
@@ -219,7 +257,7 @@ std::vector<double> StartSelect(){
 
 std::vector<double> NHSelect(double targetX, double x){
     int n;
-    double h, nCap = pow(10, 7);;
+    double h, nCap = pow(10, 7);
     char nhSelect;
     std::vector<double> out;
 
@@ -325,18 +363,89 @@ void PlotLine(std::vector<Point> pList){
 	// plt::plot(L[0], L[1], "g-");
 }
 
+
+/*
 void PlotSegments(std::vector<Segment> segments){
 	for(Segment s : segments){
 		// plt::plot({s.p1.x, s.p2.x}, {s.p1.y, s.p2.y}, "b-");
 	}
 }
+*/
+
+struct Pixel{
+	// Pixel() = y(0), x(0), RGB({0,0,0});
+	Pixel(double xIn, double yIn, std::vector<int> RGBIn){
+		x = xIn;
+		y = yIn;
+		for(int i : RGBIn){
+			RGB.push_back(i);
+		}
+	}
+	int x, y;
+	std::vector<int> RGB;
+};
+
+class PersonalImage{
+	public:
+		PersonalImage(std::vector<Pixel> baseImage, double scalerIn){
+			for(Pixel p : baseImage){
+				pixels.push_back(p);
+			}
+			scaler = scalerIn;
+		}
+		PersonalImage(std::vector<Point> xyBounds, std::vector<int> sizeIn){
+			bounds = xyBounds;
+			size = sizeIn;
+			double areaPoints = (abs(bounds[0].x)+abs(bounds[1].x))*(abs(bounds[0].y + abs(bounds[1].y)));
+			double areaReal = size[0]*size[1];
+			scaler = areaReal/areaPoints;
+			for(Point p : Matrix(Point(), Point(sizeIn[0], sizeIn[1]), sizeIn).getMatrix()){
+				pixels.push_back(Pixel(p.x,p.y,{0,0,0}));
+			}
+			Pixel centerPixel = pixels[(sizeof(pixels)-1)/2];
+			TranslationVector (centerPixel.x, centerPixel.y); // New origin
+		}
+		std::vector<Pixel> GetImage(){
+			return pixels;
+		}
+		std::vector<Point> GetBounds(){
+			return bounds;
+		}
+		std::vector<int> GetSize(){
+			return size;
+		}
+		void PlotPoint(Point p){
+			p.Scale(scaler);
+			p += TranslationVector;
+			IncludePixel(Pixel (p.x, p.y, {255,255,255}));
+		}
+		void PlotSegment(Segment s){
+			s.Scale(scaler);
+			s.Order();
+			double slope = (s.p1.y - s.p2.y)/(s.p1.x - s.p2.x);
+			for(Pixel &p : pixels){ // Find a better way to do this
+				if(p >= s.p1 && p <= s.p2 && p.y == slope*p.x){
+					p.RGB = {255,255,255};
+				}
+			}
+
+		}
+	private:
+		void IncludePixel(Pixel p){
+			pixels[abs((int)p.x) + abs((int)p.y)*size[0]].RGB = p.RGB;
+		}
+		std::vector<Point> bounds;
+		std::vector<int> size;
+		double scaler;
+		std::vector<Pixel> pixels;
+		Point TranslationVector;
+};
 
 
-int main()
+int main(int /*argc*/, char ** argv)
 {
-    std::vector<Point> pL = Approximate({}, true);
-    std::cout << "Final point " << pL[pL.size() - 1] << std::endl;
-    PlotLine(pL);
+
+
 
     return 0;
 }
