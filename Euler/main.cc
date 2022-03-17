@@ -28,10 +28,14 @@ struct Point{
     double x, y;
     void Scale(double scaler){
     	double r = sqrt(pow(this->x, 2) + pow(this->y, 2));
-	double theta = atan(this->x*this->y);
-	r *= scaler;
-	this->x = r*cos(theta);
-	this->y = r*sin(theta);
+		double theta = atan(this->x*this->y);
+		r *= scaler;
+		this->x = r*cos(theta);
+		this->y = r*sin(theta);
+    }
+    void ToInt(){
+    	this->x = (int)this->x;
+    	this->y = (int)this->y;
     }
 
     friend std::ostream& operator << (std::ostream& os, const Point& p);
@@ -106,6 +110,10 @@ struct Segment{
     	this->p1 += vector;
     	this->p2 += vector;
     }
+    void ToInt(){
+    	this->p1.ToInt();
+    	this->p2.ToInt();
+    }
     friend bool operator < (const Segment& l, const Segment& r);
     Point operator ++ (){
     	return this->p1 + this->p2;
@@ -161,8 +169,8 @@ class Matrix{
         }
     protected:
         std::vector<Point> data;
-        double yDist = 0, xDist = 0;
         std::vector<int> d;
+        double yDist = 0, xDist = 0;
         Point startMin, startMax;
         std::vector<double> xList, yList;
 };
@@ -311,6 +319,30 @@ std::vector<double> NHSelect(double targetX, double x){
     return out;
 }
 
+std::vector<std::vector<double>> GetXYList (std::vector<Point> pList){
+	std::vector<double> xList, yList;
+	for(Point p : pList){
+		xList.push_back(p.x);
+		yList.push_back(p.y);
+	}
+	return {xList, yList};
+}
+
+/*
+void PlotLine(std::vector<Point> pList){
+	auto L = GetXYList(pList);
+	// plt::plot(L[0], L[1], "g-");
+}
+
+void PlotSegments(std::vector<Segment> segments){
+	for(Segment s : segments){
+		// plt::plot({s.p1.x, s.p2.x}, {s.p1.y, s.p2.y}, "b-");
+	}
+}
+*/
+
+// std::vector<int> RGBInit = {0,0,0};
+
 std::vector<Point> Approximate(std::vector<double> in, bool isTesting){
 	int n;
 	double h, tRadius;
@@ -353,37 +385,16 @@ std::vector<Point> Approximate(std::vector<double> in, bool isTesting){
     return pointList;
 }
 
-std::vector<std::vector<double>> GetXYList (std::vector<Point> pList){
-	std::vector<double> xList, yList;
-	for(Point p : pList){
-		xList.push_back(p.x);
-		yList.push_back(p.y);
-	}
-	return {xList, yList};
-}
-
-void PlotLine(std::vector<Point> pList){
-	auto L = GetXYList(pList);
-	// plt::plot(L[0], L[1], "g-");
-}
-
-
-/*
-void PlotSegments(std::vector<Segment> segments){
-	for(Segment s : segments){
-		// plt::plot({s.p1.x, s.p2.x}, {s.p1.y, s.p2.y}, "b-");
-	}
-}
-*/
-
 struct Pixel{
-	// Pixel() = y(0), x(0), RGB({0,0,0});
+	Pixel(): x(0), y(0), RGB(std::vector<int> {0,0,0}){}
 	Pixel(double xIn, double yIn, std::vector<int> RGBIn){
 		x = xIn;
 		y = yIn;
-		for(int i : RGBIn){
-			RGB.push_back(i);
-		}
+		RGB = RGBIn;
+	}
+	void ToInt(){
+		this->x = (int)this->x;
+		this->y = (int)this->y;
 	}
 	int x, y;
 	std::vector<int> RGB;
@@ -392,8 +403,11 @@ struct Pixel{
 class PersonalImage{
 	public:
 		PersonalImage(std::vector<Pixel> baseImage, double scalerIn){
+			pixels.resize(sizeof(baseImage));
+			int i = 0;
 			for(Pixel p : baseImage){
-				pixels.push_back(p);
+				pixels[i] = p;
+				i++;
 			}
 			scaler = scalerIn;
 		}
@@ -406,8 +420,9 @@ class PersonalImage{
 			for(Point p : Matrix(Point(), Point(sizeIn[0], sizeIn[1]), sizeIn).getMatrix()){
 				pixels.push_back(Pixel(p.x,p.y,{0,0,0}));
 			}
-			Pixel centerPixel = pixels[(sizeof(pixels)-1)/2];
-			TranslationVector (centerPixel.x, centerPixel.y); // New origin
+			TransSlope[0] = -size[0]/(bounds[0].x - bounds[1].x);
+			TransSlope[1] = -size[1]/(bounds[0].y - bounds[1].y);
+			TransVector = Point (-TransSlope[0]*bounds[0].x, -TransSlope[1]*bounds[0].y); // (Min x, Min y) -> (0,0)
 		}
 		std::vector<Pixel> GetImage(){
 			return pixels;
@@ -419,38 +434,58 @@ class PersonalImage{
 			return size;
 		}
 		void PlotPoint(Point p){
-			p.Scale(scaler);
-			p += TranslationVector;
+			p = TranslatePoint(p);
 			IncludePixel(Pixel (p.x, p.y, {255,255,255}));
 		}
 		void PlotSegment(Segment s){
-			s.Scale(scaler);
-			s.Translate(TranslationVector);
+			s = TranslateSegment(s);
+			s.ToInt();
 			if(s.p2.x > s.p1.x){
 				s.Reverse();
 			}
 			double slope = (s.p1.y - s.p2.y)/(s.p1.x - s.p2.x);
-			for(Pixel &p : pixels){ // Find a better way to do this
+			int xDist = s.p1.x - s.p2.x;
+			std::vector<Point> inbetweenPoints;
+			for(int i = 0; i <= xDist; i++){
+				inbetweenPoints.push_back(Point (i + s.p1.x, (slope*i + s.p1.y)));
+			}
+
+
+		/*	for(Pixel &p : pixels){ // Find a better way to do this
 				if(p.x >= s.p2.x && p.x <= s.p2.x && p.y == slope*p.x){
 					p.RGB = {255,255,255};
 				}
-			}
+			}	*/
 
 		}
 	private:
 		void IncludePixel(Pixel p){
-			pixels[abs((int)p.x) + abs((int)p.y)*size[0]].RGB = p.RGB;
+			p.ToInt();
+			pixels[abs(p.x) + abs(p.y)*size[0]].RGB = p.RGB;
+		}
+		Point TranslatePoint (Point p){
+			p.x *= TransSlope[0];
+			p.y *= TransSlope[1];
+			p += TransVector;
+			return p;
+		}
+		Segment TranslateSegment (Segment s){
+			s.p1 = TranslatePoint(s.p1);
+			s.p2 = TranslatePoint(s.p2);
+			return s;
 		}
 		std::vector<Point> bounds;
 		std::vector<int> size;
 		double scaler;
 		std::vector<Pixel> pixels;
-		Point TranslationVector;
+		Point TransVector;
+		double TransSlope[2];
 };
 
 
 int main(int /*argc*/, char ** argv)
 {
 
-    return 0;
+
+	return 0;
 }
