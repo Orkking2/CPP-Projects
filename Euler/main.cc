@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <deque>
 #include <math.h>
 #include <algorithm>
 #include <optional>
@@ -9,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #define PNG_DEBUG 3
 #include <png.h>
@@ -16,7 +18,7 @@
 
 
 double slope(double x, double y){
-    return (pow(x,2) + pow(y,2) - 2*x*y - 3);  // x^2 + y^2 - 2xy - 3
+    return (pow(x, 2) + pow(y, 2) - 2*x*y - 3);  // x^2 + y^2 - 2xy - 3
 }
 
 struct Point{
@@ -27,15 +29,15 @@ struct Point{
     }
     double x, y;
     void Scale(double scaler){
-    	double r = sqrt(pow(this->x, 2) + pow(this->y, 2));
-		double theta = atan(this->x*this->y);
+    	double r = sqrt(pow(x, 2) + pow(y, 2));
+		double theta = atan(x*this->y);
 		r *= scaler;
-		this->x = r*cos(theta);
-		this->y = r*sin(theta);
+		x = r*cos(theta);
+		y = r*sin(theta);
     }
     void ToInt(){
-    	this->x = (int)this->x;
-    	this->y = (int)this->y;
+    	x = (int)x;
+    	y = (int)y;
     }
 
     friend std::ostream& operator << (std::ostream& os, const Point& p);
@@ -45,24 +47,24 @@ struct Point{
     friend bool operator >= (const Point& l, const Point& r);
 
     Point operator + (const Point& p){
-        return Point(this->x + p.x, this->y + p.y);
+        return Point(x + p.x, y + p.y);
     }
 
     bool operator == (const Point& p){
-        return (this->x == p.x && this->y == p.y);
+        return (x == p.x && y == p.y);
     }
 
     bool operator != (const Point& p){
-        return !(this->x == p.x || this->y == p.y);
+        return !(x == p.x || y == p.y);
     }
 
     void operator += (const Point& p){
-        this->x += p.x;
-        this->y += p.y;
+        x += p.x;
+        y += p.y;
     }
 
     bool inRadius(Point p, double r){
-        return sqrt(pow(p.x - this->x, 2) + pow(p.y - this->y, 2)) <= r;
+        return sqrt(pow(p.x - x, 2) + pow(p.y - y, 2)) <= r;
     }
 
 };
@@ -86,41 +88,40 @@ std::ostream& operator << (std::ostream& os, const Point& p){
 }
 
 struct Segment{
-    Segment() = default;
-    Segment(Point point1, Point point2){
+    Segment(Point point1 = Point(), Point point2 = Point()){
         p1 = point1;
         p2 = point2;
     }
     Point p1, p2;
     void Scale(double scaler){
-    	this->p1.Scale(scaler);
-    	this->p2.Scale(scaler);
+    	p1.Scale(scaler);
+    	p2.Scale(scaler);
     }
     void Reverse(){
-    	Segment s(this->p2, this->p1);
-    	this->p1 = s.p1;
-    	this->p2 = s.p2;
+    	Segment s(p2, this->p1);
+    	p1 = s.p1;
+    	p2 = s.p2;
     }
     void Order(){
-    	if(this->p2 > this->p1){
-    		this->Reverse();
+    	if(p2 > this->p1){
+    		Reverse();
     	}
     }
     void Translate(Point vector){
-    	this->p1 += vector;
-    	this->p2 += vector;
+    	p1 += vector;
+    	p2 += vector;
     }
     void ToInt(){
-    	this->p1.ToInt();
-    	this->p2.ToInt();
+    	p1.ToInt();
+    	p2.ToInt();
     }
     friend bool operator < (const Segment& l, const Segment& r);
     Point operator ++ (){
-    	return this->p1 + this->p2;
+    	return p1 + this->p2;
     }
     void operator += (const Segment& s){
-    	this->p1 += s.p1;
-    	this->p2 += s.p1;
+    	p1 += s.p1;
+    	p2 += s.p1;
     }
 };
 
@@ -128,13 +129,51 @@ bool operator < (const Segment& l, const Segment& r){
     return l.p1 < r.p1 && l.p2 < r.p2;
 }
 
-/*
-template <typename T>
-class container{
-    T x;
-    T y;
+struct Pixel{
+	Pixel(double xIn = 0, double yIn = 0, std::vector<int> RGBIn = {0,0,0}){
+		x = xIn;
+		y = yIn;
+		RGB = RGBIn;
+	}
+	void ToInt(){
+		x = (int)x;
+		this->y = (int)y;
+	}
+	int x, y;
+	std::vector<int> RGB;
 };
-*/
+
+double InvSigmoid(double x, double a){
+	return -log(a/(x + 0.5*a) - 1);
+}
+
+struct Particle{
+	Particle(Point origin = Point(), double thetaIn = 0){
+		p = origin;
+		theta = thetaIn;
+		vector = Point (r*cos(theta), r*sin(theta));
+	}
+	double deltaThetaGen(int seedIn = seed){
+		return 1/3*InvSigmoid(((rand() + seedIn) % 1000 - 500)/50, 10); // https://www.desmos.com/calculator/hmxc9uegiz
+	}
+	void UpdateVector(int seedIn = seed){
+		theta += deltaThetaGen(seedIn);
+		vector = Point(r*cos(theta), r*sin(theta));
+	}
+	void UpdatePoint(Point vector){
+		p += vector;
+	}
+	void UpdatePoint(){
+		p += vector;
+	}
+	void Update(){
+		UpdatePoint();
+		UpdateVector();
+	}
+	Point p, vector;
+	double theta;
+	static int seed = rand(), r = 0.5;
+};
 
 class Matrix{
     public:
@@ -384,41 +423,224 @@ std::vector<Point> Approximate(std::vector<double> in, bool isTesting){
 
     return pointList;
 }
-
-struct Pixel{
-	Pixel(): x(0), y(0), RGB(std::vector<int> {0,0,0}){}
-	Pixel(double xIn, double yIn, std::vector<int> RGBIn){
-		x = xIn;
-		y = yIn;
-		RGB = RGBIn;
-	}
-	void ToInt(){
-		this->x = (int)this->x;
-		this->y = (int)this->y;
-	}
-	int x, y;
-	std::vector<int> RGB;
+/*
+template <typename T>
+class container{
+    T x;
+    T y;
 };
+*/
+
+/*
+template <typename T>
+class PlusIndex{
+	T i;
+	int index;
+};
+*/
+
+struct Token{
+    enum struct Type{
+        Unknown,
+        Number,
+		Operator,
+        LeftParen,
+        RightParen,
+		X,
+    };
+
+    Token(Type t, const std::string& s, int prec = -1, bool ra = false)
+        : type {t}, str (s), precedence {prec}, rightAssociative {ra}
+    {}
+
+    const Type type;
+    const std::string str;
+    const int precedence;
+    const bool rightAssociative;
+};
+
+std::deque<Token> ParseExpression(std::string& string){
+	std::deque<Token> tokens;
+
+	for(const auto* c = string.c_str(); *c; c++){
+		if(isblank(*c)){
+			// pass
+		} else if(isdigit(*c)){
+			const auto* b = c;
+			auto* e = c;
+
+			while(isdigit(*e)){
+				e++;
+			}
+			const auto s = std::string(b, e);
+			tokens.push_back(Token {Token::Type::Number, s});
+			c += s.size();
+		} else {
+			Token::Type t = Token::Type::Unknown;
+			int pr = -1;
+			bool ra = false;
+			switch(*c){
+			default:                                    break;
+			case '(':   t = Token::Type::LeftParen;     break;
+			case ')':   t = Token::Type::RightParen;    break;
+			case '_':   t = Token::Type::Operator;      pr = 5; ra = true; break;
+			case '^':   t = Token::Type::Operator;      pr = 4; ra = true; break;
+			case '*':   t = Token::Type::Operator;      pr = 3; break;
+			case '/':   t = Token::Type::Operator;      pr = 3; break;
+			case '%':   t = Token::Type::Operator;      pr = 3; break;
+			case '+':   t = Token::Type::Operator;      pr = 2; break;
+			case '-':   t = Token::Type::Operator;      pr = 2; break;
+			case 'x':   t = Token::Type::X;             break;
+			}
+			const auto s = std::string(1, *c);
+			tokens.push_back(Token {t, s, pr, ra});
+		}
+	}
+
+	// ShuntingYard
+
+	std::deque<Token> queue;
+	std::vector<Token> stack;
+
+	for(Token token : tokens){
+		switch(token.type){
+		case Token::Type::Number:
+			queue.push_back(token);
+			break;
+
+		case Token::Type::Operator:
+			{
+				const auto o1 = token;
+				while(!stack.empty()){
+					const auto o2 = stack.back();
+					if((!o1.rightAssociative && o1.precedence <= o2.precedence) || (o1.rightAssociative && o1.precedence <  o2.precedence)){
+						stack.pop_back();
+						queue.push_back(o2);
+
+						continue;
+					}
+					break;
+				}
+				stack.push_back(o1);
+			}
+			break;
+
+		case Token::Type::LeftParen:
+			stack.push_back(token);
+			break;
+
+		case Token::Type::RightParen:
+			{
+				bool match = false;
+				while(! stack.empty() && stack.back().type != Token::Type::LeftParen){
+					queue.push_back(stack.back());
+					stack.pop_back();
+					match = true;
+				}
+				stack.pop_back();
+
+				if(!match && stack.empty()){
+					printf("RightParen error (%s)\n", token.str.c_str());
+					return {};
+				}
+			}
+			break;
+
+		default:
+			printf("error (%s)\n", token.str.c_str());
+			return {};
+		}
+	}
+	while(!stack.empty()){
+		if(stack.back().type == Token::Type::LeftParen){
+			printf("Mismatched parentheses error\n");
+			return {};
+		}
+
+		queue.push_back(std::move(stack.back()));
+		stack.pop_back();
+	}
+	return queue;
+}
+
+double EvaluateExpression(std::deque<Token> queue, double x){
+	std::vector<int> stack;
+	while(!queue.empty()){
+		const auto token = queue.front();
+		queue.pop_front();
+		switch(token.type){
+		case Token::Type::Number:
+			stack.push_back(std::stoi(token.str));
+			break;
+
+		case Token::Type::Operator:
+			{
+				if(token.str[0] == 'x'){
+					stack.push_back(x);
+					break;
+				}
+				const auto r = stack.back();
+				stack.pop_back();
+				if(token.str[0] == '_'){
+					stack.push_back(-r);
+					break;
+				}
+				const auto l = stack.back();
+				stack.pop_back();
+
+				switch(token.str[0]) {
+				default:
+					printf("Operator error [%s]\n", token.str.c_str());
+					exit(0);
+					break;
+				case '^':
+					stack.push_back((int)(pow(l, r)));
+					break;
+				case '*':
+					stack.push_back(l * r);
+					break;
+				case '/':
+					stack.push_back(l / r);
+					break;
+				case '+':
+					stack.push_back(l + r);
+					break;
+				case '-':
+					stack.push_back(l - r);
+					break;
+				case '%':
+					stack.push_back(l % r);
+				}
+			}
+			break;
+
+		default:
+			printf("Token error\n");
+			exit(0);
+		}
+	}
+	return stack.back();
+}
 
 class PersonalImage{
 	public:
-		PersonalImage(std::vector<Pixel> baseImage, double scalerIn){
+		PersonalImage(std::vector<Pixel> baseImage){
 			pixels.resize(sizeof(baseImage));
 			int i = 0;
 			for(Pixel p : baseImage){
 				pixels[i] = p;
 				i++;
 			}
-			scaler = scalerIn;
 		}
 		PersonalImage(std::vector<Point> xyBounds, std::vector<int> sizeIn){
 			bounds = xyBounds;
 			size = sizeIn;
-			double areaPoints = (abs(bounds[0].x)+abs(bounds[1].x))*(abs(bounds[0].y + abs(bounds[1].y)));
 			double areaReal = size[0]*size[1];
-			scaler = areaReal/areaPoints;
-			for(Point p : Matrix(Point(), Point(sizeIn[0], sizeIn[1]), sizeIn).getMatrix()){
-				pixels.push_back(Pixel(p.x,p.y,{0,0,0}));
+			pixels.resize(areaReal);
+			int i = 0;
+			for(Point p : Matrix(Point(0,0), Point(sizeIn[0], sizeIn[1]), sizeIn).getMatrix()){
+				pixels[i] = Pixel(p.x,p.y,{0,0,0});
+				i++;
 			}
 			TransSlope[0] = -size[0]/(bounds[0].x - bounds[1].x);
 			TransSlope[1] = -size[1]/(bounds[0].y - bounds[1].y);
@@ -445,18 +667,26 @@ class PersonalImage{
 			}
 			double slope = (s.p1.y - s.p2.y)/(s.p1.x - s.p2.x);
 			int xDist = s.p1.x - s.p2.x;
-			std::vector<Point> inbetweenPoints;
 			for(int i = 0; i <= xDist; i++){
-				inbetweenPoints.push_back(Point (i + s.p1.x, (slope*i + s.p1.y)));
+				IncludePixel(Pixel(i + s.p1.x, slope*i + s.p1.y, {255,255,255}));
 			}
-
-
-		/*	for(Pixel &p : pixels){ // Find a better way to do this
-				if(p.x >= s.p2.x && p.x <= s.p2.x && p.y == slope*p.x){
-					p.RGB = {255,255,255};
-				}
-			}	*/
-
+		}
+		void PlotParticle(Particle p){
+			IncludePixel(Pixel(p.p.x, p.p.y, {255,255,255}));
+			while(p.p.x > 0 && p.p.y > 0 && p.p.x <= size[0] && p.p.y <= size[1]){
+				p.Update();
+				IncludePixel(Pixel(p.p.x, p.p.y, {255,255,255}));
+			}
+		}
+		void PlotEXFunction(std::string f, int bounds[2]){
+			std::deque<Token> queue = ParseExpression(f);
+			int xDist = (int)(bounds[1]*TransSlope[0]) - (int)(bounds[0]*TransSlope[0]);
+			for(int i = 0; i <= xDist; i++){
+				int x = i/TransSlope[0] + bounds[0];
+				int y = (int)EvaluateExpression(queue, x);
+				Point p = TranslatePoint(Point(x, y));
+				IncludePixel(Pixel(p.x, p.y, {255,255,255}));
+			}
 		}
 	private:
 		void IncludePixel(Pixel p){
@@ -476,7 +706,6 @@ class PersonalImage{
 		}
 		std::vector<Point> bounds;
 		std::vector<int> size;
-		double scaler;
 		std::vector<Pixel> pixels;
 		Point TransVector;
 		double TransSlope[2];
